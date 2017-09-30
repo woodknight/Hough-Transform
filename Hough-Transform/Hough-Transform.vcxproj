@@ -149,9 +149,11 @@
   <ItemGroup>
     <ClInclude Include="CannyEdge.h" />
     <ClInclude Include="CImg.h" />
+    <ClInclude Include="HoughTransform.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CannyEdge.cpp" />
+    <ClCompile Include="HoughTransform.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

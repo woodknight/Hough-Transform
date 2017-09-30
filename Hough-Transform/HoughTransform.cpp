@@ -1,3 +1,4 @@
+
 #include "HoughTransform.h"
 
 template <typename T>
@@ -11,12 +12,12 @@ Image<T>::~Image() {
 }
 
 template <typename T>
-std::size_t Image<T>::GetBytesPerPixel() {
+size_t Image<T>::GetBytesPerPixel() {
 	return sizeof(T);
 }
 
 template <typename T>
-std::size_t Image<T>::GetSizeInBytes() {
+size_t Image<T>::GetSizeInBytes() {
 	return this->width * this->height * this->GetBytesPerPixel();
 }
 
