@@ -147,13 +147,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CannyEdge.h" />
     <ClInclude Include="CImg.h" />
     <ClInclude Include="HoughTransform.h" />
     <ClInclude Include="Image.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CannyEdge.cpp" />
     <ClCompile Include="HoughTransform.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

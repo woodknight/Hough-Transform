@@ -11,8 +11,8 @@ int main()
 {
 	CImg<unsigned char> img("valve.bmp");
 	
-	int h = img.height();
-	int w = img.width();
+	size_t h = img.height();
+	size_t w = img.width();
 	
 	unsigned char *imageArray = img.data();
 	
