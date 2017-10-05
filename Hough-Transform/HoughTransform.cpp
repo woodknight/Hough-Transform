@@ -3,6 +3,8 @@
 
 #include "HoughTransform.h"
 
+using std::vector;
+
 HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
 {
 	filteredImg = new float[width*height];		// Gaussian filtered image
@@ -10,6 +12,16 @@ HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
 	edgeAngle = new int[width*height];;			// angle of soble edge
 	imgSuppressed = new float[width*height];	// non maximum suppressed edge image
 	binaryImage = new bool[width*height];		// binary image
+
+	// initialize rThetaM
+	rRange = ceil((sqrt((width / 2) * (width / 2) + (height / 2) * (height / 2))))
+		+ ceil((sqrt((width / 2 + 1) * (width / 2 + 1) + (height / 2+ 1) * (height / 2 + 1))));
+	// theta = 0 : 1 : 179
+	// set up size. (180 x rRange)
+	
+	rThetaM.resize(180);
+	for (int i = 0; i < 180; i++)
+		rThetaM[i].resize(rRange);	
 }
 
 HoughTransform::~HoughTransform()
@@ -397,6 +409,41 @@ void HoughTransform::threshold()
 
 void HoughTransform::HoughLines()
 {
+	// find lines using Hough transform
+	const size_t h = img.height;
+	const size_t w = img.width;
+
+	const double pi = 3.14159265;
+
+	// generate binary edge image for voting
+	GaussianFilter();
+	SobelEdge();
+	NonMaxSuppression();
+	threshold();
+
+	// populate rThetaM matrix using voting
+	int index = 0;
+	int x, y; // coordinates with origin in the center of the image
+	int r;
+	for (int i = 0; i < h; i++)
+	{
+		for (int j = 0; j < w; j++)
+		{
+			index = i*w + j;
+			if (binaryImage[index])
+			{
+				x = j - floor(w / 2);
+				y = i - floor(h / 2);
+				for (int a = 0; a < 180; a++)
+				{
+					r = round(x*cos(a / 180.0*pi) + y*sin(a / 180.0*pi));
+					rThetaM[a][r + rRange/2]++;
+				}
+			}
+
+		}
+	}
+	
 
 }
 

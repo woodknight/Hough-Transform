@@ -17,6 +17,21 @@ int main()
 	
 	unsigned char *imageArray = img.data();
 	
+	HoughTransform H(w,h);
+	H.img.pixels = imageArray;
+
+	H.HoughLines();
+
+	/*
+	for (int i = 0; i < 180; i++)
+	{
+		for (int j = 0; j < h / 2; j++)
+			cout << H.rThetaM[i][j] << " ";
+		cout << endl;
+	}
+	*/
+	
+	/*
 	
 	// display images
 	CImg<unsigned char> img2(imageArray, w, h);
@@ -28,6 +43,7 @@ int main()
 	{
 		src_disp.wait();
 	}
-		
-	return 0;
+	
+	*/
+	// return 0;
 }

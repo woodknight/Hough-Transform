@@ -32,7 +32,7 @@ Image<T>::Image(size_t width, size_t height)
 template <typename T>
 Image<T>::~Image() 
 {
-	delete[] pixels;
+	// delete[] pixels;
 }
 
 template <typename T>
