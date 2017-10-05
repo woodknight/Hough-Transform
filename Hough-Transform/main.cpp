@@ -9,6 +9,7 @@ using namespace cimg_library;
 
 int main()
 {
+	//
 	CImg<unsigned char> img("valve.bmp");
 	
 	size_t h = img.height();
