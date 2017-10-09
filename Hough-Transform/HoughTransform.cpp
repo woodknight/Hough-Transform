@@ -1,9 +1,10 @@
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 
 #include "HoughTransform.h"
 
-using std::vector;
+using namespace std;
 
 HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
 {
@@ -14,8 +15,7 @@ HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
 	binaryImage = new bool[width*height];		// binary image
 
 	// initialize rThetaM
-	rRange = ceil((sqrt((width / 2) * (width / 2) + (height / 2) * (height / 2))))
-		+ ceil((sqrt((width / 2 + 1) * (width / 2 + 1) + (height / 2+ 1) * (height / 2 + 1))));
+	rRange = 2*ceil(sqrt(width*width + height*height)) + 1;
 	// theta = 0 : 1 : 179
 	// set up size. (180 x rRange)
 	
@@ -46,7 +46,7 @@ void HoughTransform::GaussianFilter()
 	float filter[] = { 0.0545f, 0.2442f, 0.4026f, 0.2442f, 0.0545f }; //Gaussian filter, width=5, sigma=1
 
 																	  // convolve along horizontal direction
-	int index = 0;
+	size_t index = 0;
 	float value = 0;
 	for (int i = 0; i < h; i++)
 		for (int j = 0; j < w; j++)
@@ -102,7 +102,7 @@ void HoughTransform::SobelEdge()
 
 	int r = 0, c = 0; // row and column index
 
-	int index = 0;
+	size_t index = 0;
 	for (int i = 0; i < h; i++) // first and last columns
 	{
 		index = i * w + 0;
@@ -188,7 +188,7 @@ void HoughTransform::NonMaxSuppression()
 	const size_t h = img.height;
 	const size_t w = img.width;
 
-	int index = 0;
+	size_t index = 0;
 	for (int y = 1; y < h - 1; y++)
 		for (int x = 1; x < w - 1; x++)
 		{
@@ -352,7 +352,7 @@ void HoughTransform::threshold()
 		binaryImage[i] = false;
 	}
 
-	int index = 0;
+	size_t index = 0;
 	for (int i = 1; i < h - 1; i++)
 		for (int j = 1; j < w - 1; j++)
 		{
@@ -407,7 +407,7 @@ void HoughTransform::threshold()
 
 }
 
-void HoughTransform::HoughLines()
+void HoughTransform::HoughMatrix()
 {
 	// find lines using Hough transform
 	const size_t h = img.height;
@@ -422,31 +422,128 @@ void HoughTransform::HoughLines()
 	threshold();
 
 	// populate rThetaM matrix using voting
-	int index = 0;
-	int x, y; // coordinates with origin in the center of the image
+	size_t index = 0;	
 	int r;
-	for (int i = 0; i < h; i++)
+	for (int y = 0; y < h; y++)
 	{
-		for (int j = 0; j < w; j++)
+		for (int x = 0; x < w; x++)
 		{
-			index = i*w + j;
+			index = y*w + x;
 			if (binaryImage[index])
-			{
-				x = j - floor(w / 2);
-				y = i - floor(h / 2);
-				for (int a = 0; a < 180; a++)
+			{				
+				for (int a = -90; a < 90; a++)
 				{
 					r = round(x*cos(a / 180.0*pi) + y*sin(a / 180.0*pi));
 					rThetaM[a][r + rRange/2]++;
 				}
 			}
+		}
+	}	
+}
 
+vector<int> HoughTransform::findMax()
+{
+	vector<int> coord;
+	int aMax = 0;
+	int rMax = 0;
+
+	int max = 0;
+	int currentMax = 0;
+	for (int a = 0; a < 180; a++)
+		for(int r = 0; r < rRange; r++)
+		{
+			if (rThetaM[a][r] > max)
+			{
+				max = rThetaM[a][r];
+				aMax = a;
+				rMax = r;
+			}
+		}
+	if (max > 0)
+	{
+		coord.push_back(max);
+		coord.push_back(aMax);
+		coord.push_back(rMax);
+	}
+	return coord;
+}
+
+void HoughTransform::HoughPeaks(const int numOfPeaks, const int hooda, const int hoodr)
+{	
+	//find peaks of Hough Transfrom matrix
+	// suppress the neighborhoods. neighborhoods window size equals (hooda*2+1)x(hoodr*2+1)
+	// modified from MATLAB
+
+	HoughMatrix();
+
+	// find maximum value of rThetaM for thresholding	
+	int max = 0;
+	int currentMax = 0;
+	for (const auto& a : rThetaM)
+	{
+		currentMax = *max_element(a.cbegin(), a.cend());
+		max = currentMax > max ? currentMax : max;
+	}
+	int threshold = (int) (max / 2);
+	
+	// find peaks
+	int peakCount = 0;
+	vector<int> coord;
+		
+	while (peakCount < numOfPeaks)
+	{
+		peakCount++;
+
+		coord = findMax();
+		if (!coord.empty() && coord[0] > threshold)
+		{
+			peaks.push_back(coord);
+
+			// suppress the neighborhoods
+			int aTmp = 0;
+			int rTmp = 0;
+			for(int a = coord[1] - hooda; a <= coord[1] + hooda; a++)
+				for (int r = coord[2] - hoodr; r <= coord[2] + hoodr; r++)
+				{
+					// Throw away neighbor coordinates that are out of bounds in
+				    // the rho direction.
+					if (r >= 0 && r < rRange)
+					{
+						// For coordinates that are out of bounds in the theta
+						// direction, we want to consider that H is antisymmetric
+						// along the rho axis for theta = +/ -90 degrees.
+						if (a < 0)
+						{
+							aTmp = a + 180;
+							rTmp = rRange - r;
+						}
+						else if (a >= 180)
+						{
+							aTmp = a - 180;
+							rTmp = rRange - r;
+						}
+						else
+						{
+							aTmp = a;
+							rTmp = r;
+						}
+						
+						rThetaM[aTmp][rTmp] = 0;
+					}
+				}
 		}
 	}
-	
 
 }
 
+void HoughTransform::HoughLines(const int numOfLines, const int fillGap, const int minLength)
+{
+	HoughPeaks(numOfLines);
+	for (auto const &p : peaks)
+	{
+
+	}
+}
 
 
 

@@ -5,6 +5,8 @@
 
 #include "Image.h"
 
+using std::vector;
+
 class HoughTransform 
 {
 public:
@@ -12,10 +14,11 @@ public:
 	~HoughTransform();
 	
 	Image<unsigned char> img;
+	
+	// find lines from peaks of Hough transfrom matrix
+	void HoughLines(const int numOfLines = 1, const int fillGap = 10, const int minLength = 10);
 
-	void HoughLines();
-
-	std::vector<std::vector<int>> rThetaM; // 2D array to store the r-theta voting matrix
+	vector<vector<int>> lines; // coordinates of lines of img
 
 private:
 	float *filteredImg;		// Gaussian filtered image
@@ -26,7 +29,9 @@ private:
 	unsigned int hist[256];				// histogram of imgSuppressed
 
 	int rRange;				// maximum r of r-theta matrix
-		
+	vector<vector<int>> rThetaM; // 2D array to store the r-theta voting matrix
+	vector<vector<int>> peaks; // coordinates of peaks of rThetaM
+
 	void GaussianFilter();
 	void SobelEdge();
 	void NonMaxSuppression();
@@ -34,6 +39,10 @@ private:
 	unsigned char otsu();
 	unsigned char percentile(const double p);
 	void threshold();	// convert the image to binary
+
+	void HoughMatrix(); // compute hough transform matrix	
+	vector<int> findMax(); // find coordinates of maximum of hough transform matrix						   
+	void HoughPeaks(const int numOfPeaks = 1, const int hooda = 2, const int hoodr = 5); // find coordinates of peaks of Hough transform matrix
 };
 
 
