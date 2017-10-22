@@ -20,15 +20,14 @@ public:
 
 	// lines are stored in vectors by the coordinates of starting and ending points
 	// as [x1, y1, x2, y2]
-	vector<vector<int>> lines;
-	bool *binaryImage;		// binary image
+	vector<vector<int>> lines;	
 
 private:
 	float *filteredImg;		// Gaussian filtered image
 	float *edgeAmp;			// amplitute of soble edge
 	int *edgeAngle;			// angle of soble edge
 	float *imgSuppressed;	// non maximum suppressed edge image
-	
+	bool *binaryImage;		// binary image
 
 	unsigned int hist[256];				// histogram of imgSuppressed
 

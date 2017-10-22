@@ -39,10 +39,7 @@ int main()
 		img.draw_line(L[0], L[1], L[2], L[3], color, 1.0f);  // wish the draw_line function has a parameter to change line width
 	}
 	
-	// display images
-	CImg<unsigned char> binaryImage(H.binaryImage, w, h);
-	binaryImage *= 255;
-	CImgDisplay binary_disp(binaryImage, "binaryImage");
+	// display images	
 	CImgDisplay src_disp(img, "source");
 
 	while (!src_disp.is_closed())
