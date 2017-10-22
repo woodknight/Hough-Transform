@@ -6,7 +6,9 @@
 
 using namespace std;
 
-HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
+const double pi = 3.14159265;
+
+HoughTransform::HoughTransform(size_t w, size_t h) :width(w), height(h)
 {
 	filteredImg = new float[width*height];		// Gaussian filtered image
 	edgeAmp = new float[width*height];			// amplitute of soble edge
@@ -16,7 +18,7 @@ HoughTransform::HoughTransform(size_t width, size_t height) :img(width, height)
 
 	// initialize rThetaM
 	rRange = 2*ceil(sqrt(width*width + height*height)) + 1;
-	// theta = 0 : 1 : 179
+	// theta = -90 : 1 : 89
 	// set up size. (180 x rRange)
 	
 	rThetaM.resize(180);
@@ -37,9 +39,8 @@ void HoughTransform::GaussianFilter()
 {
 	// Gaussian filter using separable convolution
 	// https://blogs.mathworks.com/steve/2006/10/04/separable-convolution/
-	const size_t w = img.width;
-	const size_t h = img.height;
-	const unsigned char *src = img.pixels;
+	const size_t w = width;
+	const size_t h = height;
 
 	float *tmp = new float[w*h];
 
@@ -57,7 +58,7 @@ void HoughTransform::GaussianFilter()
 				if (j + k >= 0 && j + k < w)
 				{
 					index = i*w + j + k;
-					value += filter[k + 2] * src[index];
+					value += filter[k + 2] * img[index];
 				}
 			}
 			tmp[i*w + j] = value;
@@ -88,8 +89,8 @@ void HoughTransform::SobelEdge()
 	// and (https://en.wikipedia.org/wiki/Sobel_operator)
 	// image is h*w matrix rearranged to 1D array in row-major order
 
-	const size_t w = img.width;
-	const size_t h = img.height;
+	const size_t w = width;
+	const size_t h = height;
 
 	float *Gx = new float[h * w]; // gradient along x
 	float *Gy = new float[h * w]; // gradient along y	
@@ -185,8 +186,8 @@ void HoughTransform::SobelEdge()
 
 void HoughTransform::NonMaxSuppression()
 {
-	const size_t h = img.height;
-	const size_t w = img.width;
+	const size_t h = height;
+	const size_t w = width;
 
 	size_t index = 0;
 	for (int y = 1; y < h - 1; y++)
@@ -246,7 +247,7 @@ void HoughTransform::histogram()
 	for (int i = 0; i < 256; i++)
 		hist[i] = 0;
 
-	for (int i = 0; i < img.height*img.width; i++)
+	for (int i = 0; i < height*width; i++)
 		hist[(unsigned char)(imgSuppressed[i])]++;
 }
 
@@ -315,8 +316,8 @@ unsigned char HoughTransform::percentile(const double p)
 
 void HoughTransform::threshold()
 {
-	const size_t h = img.height;
-	const size_t w = img.width;
+	const size_t h = height;
+	const size_t w = width;
 
 	histogram();
 
@@ -410,10 +411,8 @@ void HoughTransform::threshold()
 void HoughTransform::HoughMatrix()
 {
 	// find lines using Hough transform
-	const size_t h = img.height;
-	const size_t w = img.width;
-
-	const double pi = 3.14159265;
+	const size_t h = height;
+	const size_t w = width;	
 
 	// generate binary edge image for voting
 	GaussianFilter();
@@ -434,7 +433,7 @@ void HoughTransform::HoughMatrix()
 				for (int a = -90; a < 90; a++)
 				{
 					r = round(x*cos(a / 180.0*pi) + y*sin(a / 180.0*pi));
-					rThetaM[a][r + rRange/2]++;
+					rThetaM[a+90][r + (rRange-1)/2]++;
 				}
 			}
 		}
@@ -470,7 +469,7 @@ vector<int> HoughTransform::findMax()
 
 void HoughTransform::HoughPeaks(const int numOfPeaks, const int hooda, const int hoodr)
 {	
-	//find peaks of Hough Transfrom matrix
+	// find peaks of Hough Transfrom matrix
 	// suppress the neighborhoods. neighborhoods window size equals (hooda*2+1)x(hoodr*2+1)
 	// modified from MATLAB
 
@@ -536,11 +535,71 @@ void HoughTransform::HoughPeaks(const int numOfPeaks, const int hooda, const int
 
 }
 
+vector<vector<int>> HoughTransform::HoughPixels(const int A, const int R)
+{
+	// compute image pixel coordinates belonging the Hough transfrom bin (a, r)
+	vector<vector<int>> pixels;
+	int r;
+	for (int i = 0; i < height; ++i)
+		for (int j = 0; j < width; ++j)
+		{
+			if (binaryImage[i*width + j])
+			{
+				r = round(j*cos(A / 180.0*pi) + i*sin(A / 180.0*pi));
+				if (r  == R)
+					pixels.push_back({ j, i });
+			}
+		}
+	return pixels;
+}
+
 void HoughTransform::HoughLines(const int numOfLines, const int fillGap, const int minLength)
 {
+	// search for line segments corresponding to peaks in the Hough transform matrix.
+	// if the gap between colinear segments are smaller than fillGap, connect them.
+	// if the merged line is shorter than minLength, discard it.
+	// lines are stored in vectors by the coordinates of starting and ending points
+	// as [x1, y1, x2, y2]
+
 	HoughPeaks(numOfLines);
+	vector<vector<int>> pixels;
 	for (auto const &p : peaks)
 	{
+		// compute image pixel coordinates belonging the Hough transfrom bin (a, r)
+		pixels = HoughPixels(p[1] - 90, p[2] - (rRange - 1) / 2);
+		if (pixels.empty())
+			break;
+
+		int gap, length;
+		
+		// store the temporary starting and ending points
+		auto q1 = pixels.begin();
+		auto q2 = pixels.begin();
+		
+		// find gaps between line segments that are larger than threshold
+		for (auto it = pixels.begin(); it != pixels.end()-1; it++)
+		{
+			gap = ((*it)[0] - (*(it + 1))[0]) * ((*it)[0] - (*(it + 1))[0])
+				+ ((*it)[1] - (*(it + 1))[1]) * ((*it)[1] - (*(it + 1))[1]);
+			if (gap > fillGap*fillGap)
+			{
+				q2 = it;
+				length = ((*q1)[0] - (*q2)[0])*((*q1)[0] - (*q2)[0]) + ((*q1)[1] - (*q2)[1])*((*q1)[1] - (*q2)[1]);
+				if (length >= minLength*minLength)
+					lines.push_back({ (*q1)[0], (*q1)[1], (*q2)[0], (*q2)[1] });
+				// reset the starting and ending points
+				q1 = it + 1;
+				q2 = it + 1;
+			}
+		}
+		// if no large gap found, push the line
+		if (q1 == q2)
+		{
+			q2 = pixels.end()-1;
+			length = ((*q1)[0] - (*q2)[0])*((*q1)[0] - (*q2)[0]) + ((*q1)[1] - (*q2)[1])*((*q1)[1] - (*q2)[1]);
+			if (length >= minLength*minLength)
+				lines.push_back({ (*q1)[0], (*q1)[1], (*q2)[0], (*q2)[1] });
+		}
 
 	}
 }

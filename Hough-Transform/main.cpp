@@ -11,7 +11,7 @@ using namespace cimg_library;
 int main()
 {
 	
-	CImg<unsigned char> img("valve.bmp");
+	CImg<unsigned char> img("house.bmp");
 	
 	size_t h = img.height();
 	size_t w = img.width();
@@ -22,47 +22,34 @@ int main()
 	unsigned char *imageArray = img.data();
 	
 	HoughTransform H(w,h);
-	H.img.pixels = imageArray;
+	H.img = imageArray;
 
-	H.HoughPeaks(5);
-	for (auto const&c : H.peaks)
-	{
-		for (auto const&a : c)
-		{
-			cout << a << " ";
-		}
-		cout << endl;
-	}
-
-
+	H.HoughLines(10, 5, 60);
+	
 	// Record end time
 	auto finish = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = finish - start;
 	std::cout << "Elapsed time: " << elapsed.count() << endl;
-
-
-	/*
-	for (int i = 0; i < 180; i++)
-	{
-		for (int j = 0; j < h / 2; j++)
-			cout << H.rThetaM[i][j] << " ";
-		cout << endl;
-	}
-	*/
 	
-	/*
+	// draw lines on image
+	const unsigned char color[3] = { 0, 255, 0 };
+	for (const auto L : H.lines)
+	{
+		cout << L[0] << " " << L[1] << " " << L[2] << " " << L[3] << endl; // cout coordinates of line segments
+		img.draw_line(L[0], L[1], L[2], L[3], color, 1.0f);  // wish the draw_line function has a parameter to change line width
+	}
 	
 	// display images
-	CImg<unsigned char> img2(imageArray, w, h);
-	
-	// imageSuppressed.save("suppressed.bmp");
-
+	CImg<unsigned char> binaryImage(H.binaryImage, w, h);
+	binaryImage *= 255;
+	CImgDisplay binary_disp(binaryImage, "binaryImage");
 	CImgDisplay src_disp(img, "source");
+
 	while (!src_disp.is_closed())
 	{
 		src_disp.wait();
 	}
 	
-	*/
-	// return 0;
+	
+	return 0;
 }
